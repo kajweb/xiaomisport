@@ -1,19 +1,20 @@
-name: 刷步数
+name: 运动自动调节程序
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  # push:
+    # branches: [ main ]
+  # pull_request:
+    # branches: [ main ]
   schedule:
-    - cron: 0 9 * * *
-  watch:
-    types: started
+    - cron: "55 9 * * *" # 该时间为UTC时间，比北京时间晚8个小时
+  # watch:
+    # types: started
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.event.repository.owner.id == github.event.sender.id
+    # if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
     - uses: actions/checkout@v2
