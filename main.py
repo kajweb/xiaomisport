@@ -103,11 +103,21 @@ def main(user, passwd, step):
     return result
   
 #获取时间戳
-def get_time():
+def get_time_taobao():
     url = 'http://api.m.taobao.com/rest/api3.do?api=mtop.common.getTimestamp'
     response = requests.get(url,headers=headers).json()
     t = response['data']['t']
     return t
+
+#获取时间戳
+def get_time_suning():
+    url = 'http://f.m.suning.com/api/ct.do'
+    response = requests.get(url,headers=headers).json()
+    t = response['currentTime']
+    return t
+
+def get_time():
+	return get_time_suning()
   
 #获取app_token
 def get_app_token(login_token):
