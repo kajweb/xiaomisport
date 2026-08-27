@@ -7,6 +7,27 @@ now = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 headers = {
         'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 9; MI 6 MIUI/20.6.18)'
         }
+
+# 请求失败后的重试次数（不含首次请求，即总共尝试 REQUEST_RETRY_COUNT + 1 次）
+REQUEST_RETRY_COUNT = 1
+# 每次重试前的等待时间（分钟）
+REQUEST_RETRY_DELAY_MINUTES = 1
+# 重试等待时间（秒），由分钟换算而来
+REQUEST_RETRY_DELAY_SECONDS = REQUEST_RETRY_DELAY_MINUTES * 60
+# 单次请求超时时间（秒）
+REQUEST_TIMEOUT_SECONDS = 30
+
+
+def request_with_retry(method, url, **kwargs):
+    kwargs.setdefault("timeout", REQUEST_TIMEOUT_SECONDS)
+    for attempt in range(REQUEST_RETRY_COUNT + 1):
+        try:
+            return requests.request(method, url, **kwargs)
+        except requests.exceptions.RequestException as exc:
+            if attempt >= REQUEST_RETRY_COUNT:
+                raise
+            print(f"网络请求失败（{type(exc).__name__}），{REQUEST_RETRY_DELAY_MINUTES}分钟后重试...")
+            time.sleep(REQUEST_RETRY_DELAY_SECONDS)
  
 #获取登录code
 def get_code(location):
@@ -27,7 +48,7 @@ def login(user,password):
         "redirect_uri":"https://s3-us-west-2.amazonaws.com/hm-registration/successsignin.html",
         "token":"access"
         }
-    r1 = requests.post(url1,data=data1,headers=headers,allow_redirects=False)
+    r1 = request_with_retry("POST", url1,data=data1,headers=headers,allow_redirects=False)
     try:
         location = r1.headers["Location"]
         code = get_code(location)
@@ -47,7 +68,7 @@ def login(user,password):
         "grant_type":"access_token",
         "third_name":"huami_phone",
         } 
-    r2 = requests.post(url2,data=data2,headers=headers).json()
+    r2 = request_with_retry("POST", url2,data=data2,headers=headers).json()
     login_token = r2["token_info"]["login_token"]
     #print("login_token获取成功！")
     #print(login_token)
@@ -96,7 +117,7 @@ def main(user, passwd, step):
      
     data = f'userid={userid}&last_sync_data_time=1597306380&device_type=0&last_deviceid=DA932FFFFE8816E7&data_json={data_json}'
     
-    response = requests.post(url, data=data, headers=head).json()
+    response = request_with_retry("POST", url, data=data, headers=head).json()
     #print(response)
     result = f"{user[:4]}****{user[-4:]}: [{now}] 修改步数（{step}）"+ response['message']
     print(result)
@@ -105,14 +126,14 @@ def main(user, passwd, step):
 #获取时间戳
 def get_time_taobao():
     url = 'http://api.m.taobao.com/rest/api3.do?api=mtop.common.getTimestamp'
-    response = requests.get(url,headers=headers).json()
+    response = request_with_retry("GET", url,headers=headers).json()
     t = response['data']['t']
     return t
 
 #获取时间戳
 def get_time_suning():
     url = 'http://f.m.suning.com/api/ct.do'
-    response = requests.get(url,headers=headers).json()
+    response = request_with_retry("GET", url,headers=headers).json()
     t = response['currentTime']
     return t
 
@@ -122,7 +143,7 @@ def get_time():
 #获取app_token
 def get_app_token(login_token):
     url = f"https://account-cn.huami.com/v1/client/app_tokens?app_name=com.xiaomi.hm.health&dn=api-user.huami.com%2Capi-mifit.huami.com%2Capp-analytics.huami.com&login_token={login_token}"
-    response = requests.get(url,headers=headers).json()
+    response = request_with_retry("GET", url).json()
     app_token = response['token_info']['app_token']
     #print("app_token获取成功！")
     #print(app_token)
@@ -142,7 +163,7 @@ def push_wx(sckey, desp=""):
             "desp": desp
         }
  
-        response = requests.get(server_url, params=params)
+        response = request_with_retry("GET", server_url, params=params)
         json_data = response.json()
  
         if json_data['errno'] == 0:
@@ -164,7 +185,7 @@ def push_server(sckey, desp=""):
             "desp": desp
         }
  
-        response = requests.get(server_url, params=params)
+        response = request_with_retry("GET", server_url, params=params)
         json_data = response.json()
  
         if json_data['code'] == 0:
@@ -187,7 +208,7 @@ def push_pushplus(token, content=""):
             "content": content
         }
  
-        response = requests.get(server_url, params=params)
+        response = request_with_retry("GET", server_url, params=params)
         json_data = response.json()
  
         if json_data['code'] == 200:
@@ -211,7 +232,7 @@ def push_tg(token, chat_id, desp=""):
             "chat_id": chat_id
         }
  
-        response = requests.get(server_url, params=params)
+        response = request_with_retry("GET", server_url, params=params)
         json_data = response.json()
  
         if json_data['ok'] == True:
@@ -232,14 +253,14 @@ def wxpush(msg, usr, corpid, corpsecret, agentid=1000002):
     #获取access_token，每次的access_token都不一样，所以需要运行一次请求一次
     def get_access_token(base_url, corpid, corpsecret):
         urls = base_url + 'corpid=' + corpid + '&corpsecret=' + corpsecret
-        resp = requests.get(urls).json()
+        resp = request_with_retry("GET", urls).json()
         access_token = resp['access_token']
         return access_token
 
     def send_message(msg, usr):
         data = get_message(msg, usr)
         req_urls = req_url + get_access_token(base_url, corpid, corpsecret)
-        res = requests.post(url=req_urls, data=data)
+        res = request_with_retry("POST", url=req_urls, data=data)
         ret = res.json()
         if ret["errcode"] == 0:
             print(f"[{now}] 企业微信推送成功")

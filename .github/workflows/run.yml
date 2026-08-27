@@ -6,7 +6,7 @@ on:
   # pull_request:
     # branches: [ main ]
   schedule:
-    - cron: "55 9 * * *" # 该时间为UTC时间，比北京时间晚8个小时
+    - cron: "50 9 * * *" # 该时间为UTC时间，比北京时间晚8个小时
   # watch:
     # types: started
   workflow_dispatch:

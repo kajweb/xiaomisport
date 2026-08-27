@@ -2,6 +2,25 @@
 
 > 小米运动自动刷步数
 
+## 本机部署指南
+
+``` python
+python3 main.py <<EOF
+	${pmode}
+	${pkey}
+	${user}
+	${pwd}
+	${step}
+EOF
+```
+
+执行`crontab -e`，增加下行
+
+``` bash
+50 5 * * * cd /pathto/sporting && bash run.sh >> ./cron.log 2>&1
+```
+
+
 ## Github Actions 部署指南
 
 ### 一、Fork 此仓库
